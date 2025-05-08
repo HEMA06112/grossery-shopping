@@ -1,0 +1,78 @@
+!pip install textblob nrclex wordcloud seaborn
+import nltk
+nltk.download('punkt_tab')
+import pandas as pd
+import re
+import nltk
+import seaborn as sns
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud
+from textblob import TextBlob
+from nrclex import NRCLex
+
+# Download NLTK data
+nltk.download('stopwords')
+from nltk.corpus import stopwords
+
+# Sample data
+texts = [
+    "I am very happy today!",
+    "This makes me so angry and upset.",
+    "I'm feeling relaxed and peaceful.",
+    "I'm anxious about tomorrow's results.",
+    "Such a frustrating experience!",
+    "Had a wonderful time with family.",
+    "Feeling totally hopeless today.",
+    "I'm thankful for everything I have.",
+    "Life is hard but I keep trying.",
+    "Nothing feels right anymore."
+]
+
+# Create DataFrame
+df = pd.DataFrame({'text': texts})
+
+# Text cleaning
+stop_words = set(stopwords.words('english'))
+
+def clean_text(text):
+    text = re.sub(r"http\S+|www.\S+", "", text)
+    text = re.sub(r"@\S+|#\S+", "", text)
+    text = re.sub(r"[^a-zA-Z\s]", "", text)
+    text = text.lower()
+    return " ".join([word for word in text.split() if word not in stop_words])
+
+df['cleaned_text'] = df['text'].apply(clean_text)
+
+# Sentiment Analysis
+df['polarity'] = df['cleaned_text'].apply(lambda x: TextBlob(x).sentiment.polarity)
+df['sentiment'] = df['polarity'].apply(lambda x: 'Positive' if x > 0 else ('Negative' if x < 0 else 'Neutral'))
+
+# Emotion Detection
+def get_top_emotion(text):
+    emotion = NRCLex(text)
+    return emotion.top_emotions[0][0] if emotion.top_emotions else "none"
+
+df['emotion'] = df['cleaned_text'].apply(get_top_emotion)
+
+# Visualization: Sentiment count
+sns.countplot(x='sentiment', data=df)
+plt.title("Sentiment Distribution")
+plt.show()
+
+# Visualization: Emotion count
+sns.countplot(x='emotion', data=df, order=df['emotion'].value_counts().index)
+plt.title("Emotion Distribution")
+plt.xticks(rotation=45)
+plt.show()
+
+# WordCloud
+text_combined = " ".join(df['cleaned_text'])
+wordcloud = WordCloud(width=800, height=400, background_color='white').generate(text_combined)
+plt.figure(figsize=(10, 5))
+plt.imshow(wordcloud, interpolation='bilinear')
+plt.axis('off')
+plt.title('Word Cloud')
+plt.show()
+
+# Display result
+print(df[['text', 'sentiment', 'emotion']])
